@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HumanShield — Readiness Console</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="shell">
+
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="rail-brand-name">HumanShield</span>
+    </div>
+
+    <nav class="rail-nav">
+      <button class="rail-link is-active" data-view="dashboard">Dashboard</button>
+      <button class="rail-link" data-view="categories">Categories</button>
+      <button class="rail-link" data-view="profile">Behavioral profile</button>
+      <button class="rail-link" data-view="history">Test history</button>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="status-strip">
+      <div class="status-block status-block--primary">
+        <span class="status-label">Readiness score</span>
+        <span class="status-value" id="readiness-score">68</span>
+      </div>
+      <div class="status-block">
+        <span class="status-label">Primary weakness</span>
+        <span class="status-value status-value--flag" id="weak-skill">Pressure resistance</span>
+      </div>
+      <div class="status-block">
+        <span class="status-label">Tests completed</span>
+        <span class="status-value" id="tests-completed">12</span>
+      </div>
+    </header>
+
+    <section class="view" data-view-panel="dashboard">
+      <div class="view-head">
+        <h1>Continue training</h1>
+        <p>Pick up where you left off, or start a new category.</p>
+      </div>
+
+      <div class="case-list" id="dashboard-list"></div>
+    </section>
+
+    <section class="view" data-view-panel="categories" hidden>
+      <div class="view-head">
+        <h1>Categories</h1>
+        <p>Select a category to open a text or voice test.</p>
+      </div>
+
+      <div class="case-list" id="categories-list"></div>
+    </section>
+
+    <section class="view" data-view-panel="profile" hidden>
+      <div class="view-head">
+        <h1>Behavioral profile</h1>
+        <p>Patterns detected across every test, updated after each session.</p>
+      </div>
+
+      <div class="profile-bars" id="profile-bars"></div>
+    </section>
+
+    <section class="view" data-view-panel="history" hidden>
+      <div class="view-head">
+        <h1>Test history</h1>
+        <p>Every completed session and how it scored.</p>
+      </div>
+
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Category</th>
+            <th>Mode</th>
+            <th>Difficulty</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="history-table-body"></tbody>
+      </table>
+    </section>
+
+    <section class="view" data-view-panel="test" hidden>
+      <div class="view-head">
+        <h1 id="test-title">Test</h1>
+        <p id="test-progress"></p>
+      </div>
+
+      <div class="test-call-bar" id="test-call-bar" hidden>
+        <span class="test-call-label">📞 Incoming call</span>
+        <button class="test-listen-btn" id="test-listen-btn">Play audio</button>
+      </div>
+
+      <div class="test-message" id="test-message"></div>
+
+      <div class="test-choices" id="test-choices"></div>
+
+      <div class="test-feedback" id="test-feedback" hidden></div>
+    </section>
+  </main>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

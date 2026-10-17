@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Database (contains your local test data, not meant to be shared)
+database/*.db
+
+# OS clutter
+.DS_Store
+Thumbs.db
