@@ -1,12 +1,26 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+import os
+import sys
 from datetime import datetime, timezone
+
+# Make sibling modules (database.py, scenarios.py) importable no matter how
+# this file is loaded: `python app.py`, gunicorn, or a host that imports it
+# as `backend.app`.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from flask import Flask, jsonify, request, send_from_directory
 
 import database
 import scenarios
 
-app = Flask(__name__)
-CORS(app)
+# Static files (the web page, CSS, JS) live in public/. Vercel serves that
+# folder from its CDN; locally and on other hosts, Flask serves it itself.
+FRONTEND_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public")
+)
+
+# The frontend is served by this same app, so the page and the API share
+# one address and no cross-origin (CORS) setup is needed.
+app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
 
 database.init_db()
 
@@ -60,7 +74,15 @@ RECOMMENDATIONS = {
 
 @app.route("/")
 def home():
-    return "HumanShield backend is running"
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/health")
+def health():
+    return jsonify({
+        "status": "ok",
+        "storage": "temporary" if database.is_temporary() else "persistent"
+    })
 
 
 @app.route("/api/summary")
@@ -76,22 +98,26 @@ def summary():
         readiness_score = round(sum(c["last_score"] for c in scored) / len(scored))
         weakest = min(scored, key=lambda c: c["last_score"])
         weak_skill = weakest["name"]
-        next_test = f'{weakest["name"]} \u00b7 {weakest["difficulty"]}'
+        _, next_difficulty = scenarios.pick_scenario_for_category(
+            weakest["id"], weakest["last_score"]
+        )
+        next_test = f'{weakest["name"]} \u00b7 {next_difficulty or weakest["difficulty"]}'
+
+        if readiness_score < 40:
+            level = "Vulnerable"
+        elif readiness_score < 60:
+            level = "Needs Training"
+        elif readiness_score < 75:
+            level = "Developing"
+        elif readiness_score < 90:
+            level = "Strong"
+        else:
+            level = "HumanShield Expert"
     else:
-        readiness_score = 0
+        readiness_score = None
         weak_skill = "Not enough data"
         next_test = "Take your first test"
-
-    if readiness_score < 40:
-        level = "Vulnerable"
-    elif readiness_score < 60:
-        level = "Needs Training"
-    elif readiness_score < 75:
-        level = "Developing"
-    elif readiness_score < 90:
-        level = "Strong"
-    else:
-        level = "HumanShield Expert"
+        level = "Not assessed yet"
 
     return jsonify({
         "readinessScore": readiness_score,
@@ -209,41 +235,51 @@ def scenario(scenario_id):
     return jsonify(result)
 
 
+MAX_ANSWERS = 10
+
+
 @app.route("/api/scenario/<scenario_id>/score", methods=["POST"])
 def score_scenario(scenario_id):
-    answers = request.get_json()
-
-    safe_count = sum(1 for a in answers if a.get("safe"))
-    total = len(answers)
-    score = round((safe_count / total) * 100) if total > 0 else 0
-
     all_scenarios = scenarios.get_scenarios()
     matching_scenario = all_scenarios.get(scenario_id)
-    category_id = matching_scenario["category"] if matching_scenario else None
+    if matching_scenario is None:
+        return jsonify({"error": "Scenario not found"}), 404
 
-    if category_id:
-        now = datetime.now(timezone.utc).isoformat()
-        conn = database.get_connection()
+    answers = request.get_json(silent=True)
+    if (
+        not isinstance(answers, list)
+        or not 0 < len(answers) <= MAX_ANSWERS
+        or not all(isinstance(a, dict) for a in answers)
+    ):
+        return jsonify({"error": "Expected a non-empty list of answers"}), 400
 
-        conn.execute(
-            "INSERT INTO test_results (category_id, scenario_id, score, completed_at) VALUES (?, ?, ?, ?)",
-            (category_id, scenario_id, score, now)
-        )
-        conn.execute(
-            "UPDATE categories SET last_score = ? WHERE id = ?",
-            (score, category_id)
-        )
+    safe_count = sum(1 for a in answers if a.get("safe") is True)
+    total = len(answers)
+    score = round((safe_count / total) * 100)
 
-        for answer in answers:
-            skill_id = answer.get("skill")
-            if skill_id:
-                conn.execute(
-                    "INSERT INTO skill_results (skill_id, safe, completed_at) VALUES (?, ?, ?)",
-                    (skill_id, 1 if answer.get("safe") else 0, now)
-                )
+    category_id = matching_scenario["category"]
+    now = datetime.now(timezone.utc).isoformat()
+    conn = database.get_connection()
 
-        conn.commit()
-        conn.close()
+    conn.execute(
+        "INSERT INTO test_results (category_id, scenario_id, score, completed_at) VALUES (?, ?, ?, ?)",
+        (category_id, scenario_id, score, now)
+    )
+    conn.execute(
+        "UPDATE categories SET last_score = ? WHERE id = ?",
+        (score, category_id)
+    )
+
+    for answer in answers:
+        skill_id = answer.get("skill")
+        if skill_id in SKILLS:
+            conn.execute(
+                "INSERT INTO skill_results (skill_id, safe, completed_at) VALUES (?, ?, ?)",
+                (skill_id, 1 if answer.get("safe") is True else 0, now)
+            )
+
+    conn.commit()
+    conn.close()
 
     return jsonify({
         "score": score,
@@ -253,4 +289,5 @@ def score_scenario(scenario_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    # Local development only. In production, gunicorn serves `app`.
+    app.run(debug=True, host="127.0.0.1", port=5000)
