@@ -1,0 +1,11 @@
+[project]
+name = "humanshield"
+version = "0.1.0"
+description = "Behavioral cybersecurity training platform"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.0",
+]
+
+[tool.vercel]
+entrypoint = "backend.app:app"

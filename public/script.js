@@ -4,15 +4,15 @@ let currentStepId = "start";
 let userAnswers = [];
 
 function loadAllData() {
-  fetch("http://127.0.0.1:5000/api/summary")
+  fetch("/api/summary")
     .then(response => response.json())
     .then(data => {
-      document.getElementById("readiness-score").textContent = data.readinessScore;
+      document.getElementById("readiness-score").textContent = data.readinessScore ?? "\u2014";
       document.getElementById("weak-skill").textContent = data.weakSkill;
       document.getElementById("tests-completed").textContent = data.testsCompleted;
     });
 
-  fetch("http://127.0.0.1:5000/api/categories")
+  fetch("/api/categories")
     .then(response => response.json())
     .then(data => {
       renderCaseList("categories-list", data);
@@ -24,7 +24,7 @@ function loadAllData() {
       renderCaseList("dashboard-list", priority);
     });
 
-  fetch("http://127.0.0.1:5000/api/history")
+  fetch("/api/history")
     .then(response => response.json())
     .then(data => {
       const body = document.getElementById("history-table-body");
@@ -45,7 +45,7 @@ function loadAllData() {
       `).join("");
     });
 
-  fetch("http://127.0.0.1:5000/api/profile")
+  fetch("/api/profile")
     .then(response => response.json())
     .then(data => renderProfileBars(data));
 }
@@ -98,7 +98,7 @@ function renderCaseList(containerId, categories) {
 }
 
 function startTest(scenarioId) {
-  fetch(`http://127.0.0.1:5000/api/scenario/${scenarioId}`)
+  fetch(`/api/scenario/${scenarioId}`)
     .then(response => response.json())
     .then(data => {
       currentScenario = data;
@@ -200,14 +200,14 @@ function handleChoice(choice) {
 }
 
 function finishTest() {
-  fetch(`http://127.0.0.1:5000/api/scenario/${currentScenario.id}/score`, {
+  fetch(`/api/scenario/${currentScenario.id}/score`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(userAnswers)
   })
     .then(response => response.json())
     .then(result => {
-      return fetch("http://127.0.0.1:5000/api/recommendation")
+      return fetch("/api/recommendation")
         .then(response => response.json())
         .then(recommendation => {
           document.getElementById("test-title").textContent = "Test complete";
